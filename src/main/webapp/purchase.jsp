@@ -236,7 +236,7 @@
   <form action="${pageContext.request.contextPath}/purchase" method="post">
     <input type="hidden" name="action" value="createOrder">
 
-    <select name="supplierId" required>
+    <select name="supplierId" id="supplierSelect" required>
       <option value="">请选择供应商</option>
       <c:forEach var="supplier" items="${supplierList}">
         <option value="${supplier.supplierId}">
@@ -245,10 +245,12 @@
       </c:forEach>
     </select>
 
-    <select name="productId" required>
-      <option value="">请选择商品</option>
+    <select name="productId" id="productSelect" required disabled>
+      <option value="">请先选择供应商</option>
       <c:forEach var="product" items="${productList}">
-        <option value="${product.productId}">
+        <option value="${product.productId}"
+                data-supplier-id="${product.supplierId}"
+                data-price="${product.purchasePrice}">
             ${product.productId} - ${product.productName}
         </option>
       </c:forEach>
@@ -443,6 +445,64 @@
     </table>
   </div>
 </div>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const supplierSelect = document.getElementById("supplierSelect");
+    const productSelect = document.getElementById("productSelect");
+    const unitPriceInput = document.querySelector("input[name='unitPrice']");
 
+    const allProductOptions = Array.from(productSelect.querySelectorAll("option"))
+            .filter(option => option.value !== "");
+
+    function refreshProductOptions() {
+      const supplierId = supplierSelect.value;
+
+      productSelect.innerHTML = "";
+
+      const defaultOption = document.createElement("option");
+      defaultOption.value = "";
+      defaultOption.textContent = supplierId ? "请选择商品" : "请先选择供应商";
+      productSelect.appendChild(defaultOption);
+
+      if (!supplierId) {
+        productSelect.disabled = true;
+        if (unitPriceInput) {
+          unitPriceInput.value = "";
+        }
+        return;
+      }
+
+      let matchedCount = 0;
+
+      allProductOptions.forEach(option => {
+        if (option.dataset.supplierId === supplierId) {
+          productSelect.appendChild(option.cloneNode(true));
+          matchedCount++;
+        }
+      });
+
+      productSelect.disabled = matchedCount === 0;
+
+      if (matchedCount === 0) {
+        defaultOption.textContent = "该供应商暂无可采购商品";
+      }
+
+      if (unitPriceInput) {
+        unitPriceInput.value = "";
+      }
+    }
+
+    productSelect.addEventListener("change", function () {
+      const selectedOption = productSelect.options[productSelect.selectedIndex];
+      if (unitPriceInput && selectedOption && selectedOption.dataset.price) {
+        unitPriceInput.value = selectedOption.dataset.price;
+      }
+    });
+
+    supplierSelect.addEventListener("change", refreshProductOptions);
+
+    refreshProductOptions();
+  });
+</script>
 </body>
 </html>

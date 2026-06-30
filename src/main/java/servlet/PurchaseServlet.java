@@ -118,7 +118,11 @@ public class PurchaseServlet extends HttpServlet {
             reloadPurchasePage(request, response);
             return;
         }
-
+        if (!basicDataDao.isProductBelongToSupplier(productId, supplierId)) {
+            request.setAttribute("errorMessage", "创建采购订单失败：所选商品不属于当前供应商，请重新选择。");
+            reloadPurchasePage(request, response);
+            return;
+        }
         if (unitPrice.compareTo(BigDecimal.ZERO) < 0) {
             request.setAttribute("errorMessage", "创建采购订单失败：采购单价不能为负数。");
             reloadPurchasePage(request, response);

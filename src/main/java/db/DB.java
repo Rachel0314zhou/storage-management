@@ -44,7 +44,7 @@ public class DB {
      * 数据库密码
      * 这里一定要改成你自己 MySQL 的密码
      */
-    private static final String PASSWORD = "070315Wxy+-";
+    private static final String PASSWORD = "543211";
 
     //MySQL bin 目录路径常量
     private static final String MYSQL_BIN_PATH = "C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\";

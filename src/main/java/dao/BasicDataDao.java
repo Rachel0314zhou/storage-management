@@ -144,4 +144,38 @@ public class BasicDataDao {
 
         return list;
     }
+    /**
+     * 校验商品是否属于指定供应商。
+     * 用于采购订单提交时做后端防护，避免前端被绕过后提交错误的 supplierId + productId 组合。
+     */
+    public boolean isProductBelongToSupplier(int productId, int supplierId) {
+        String sql =
+                "SELECT COUNT(*) " +
+                        "FROM product " +
+                        "WHERE product_id = ? " +
+                        "  AND supplier_id = ? " +
+                        "  AND status = 1";
+
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+
+        try {
+            conn = DB.getConnection();
+            ps = conn.prepareStatement(sql);
+            ps.setInt(1, productId);
+            ps.setInt(2, supplierId);
+            rs = ps.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DB.close(rs, ps, conn);
+        }
+
+        return false;
+    }
 }
