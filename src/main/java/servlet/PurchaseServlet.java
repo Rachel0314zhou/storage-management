@@ -104,36 +104,75 @@ public class PurchaseServlet extends HttpServlet {
      * 新增采购订单。
      * 只创建采购订单和采购明细，不增加库存。
      */
+    /**
+     * 新增采购订单。
+     * 一个采购订单对应一个供应商，可以包含多个采购商品明细。
+     * 只创建采购订单和采购明细，不增加库存。
+     */
     private void handleCreateOrder(HttpServletRequest request, HttpServletResponse response)
             throws SQLException, IOException, ServletException {
 
         int supplierId = parseInt(request.getParameter("supplierId"), 0);
-        int productId = parseInt(request.getParameter("productId"), 0);
-        int quantity = parseInt(request.getParameter("quantity"), 0);
-        BigDecimal unitPrice = parseBigDecimal(request.getParameter("unitPrice"), BigDecimal.ZERO);
+        String[] productIdValues = request.getParameterValues("productId");
+        String[] quantityValues = request.getParameterValues("quantity");
+        String[] unitPriceValues = request.getParameterValues("unitPrice");
         String remark = request.getParameter("remark");
 
-        if (supplierId <= 0 || productId <= 0 || quantity <= 0) {
-            request.setAttribute("errorMessage", "创建采购订单失败：供应商、商品和采购数量不能为空。");
+        if (supplierId <= 0
+                || productIdValues == null
+                || quantityValues == null
+                || unitPriceValues == null
+                || productIdValues.length == 0
+                || productIdValues.length != quantityValues.length
+                || productIdValues.length != unitPriceValues.length) {
+
+            request.setAttribute("errorMessage", "创建采购订单失败：供应商和采购商品明细不能为空。");
             reloadPurchasePage(request, response);
             return;
         }
-        if (!basicDataDao.isProductBelongToSupplier(productId, supplierId)) {
-            request.setAttribute("errorMessage", "创建采购订单失败：所选商品不属于当前供应商，请重新选择。");
-            reloadPurchasePage(request, response);
-            return;
-        }
-        if (unitPrice.compareTo(BigDecimal.ZERO) < 0) {
-            request.setAttribute("errorMessage", "创建采购订单失败：采购单价不能为负数。");
-            reloadPurchasePage(request, response);
-            return;
+
+        int itemCount = productIdValues.length;
+        int[] productIds = new int[itemCount];
+        int[] quantities = new int[itemCount];
+        BigDecimal[] unitPrices = new BigDecimal[itemCount];
+
+        for (int i = 0; i < itemCount; i++) {
+            productIds[i] = parseInt(productIdValues[i], 0);
+            quantities[i] = parseInt(quantityValues[i], 0);
+            unitPrices[i] = parseBigDecimal(unitPriceValues[i], BigDecimal.ZERO);
+
+            if (productIds[i] <= 0 || quantities[i] <= 0) {
+                request.setAttribute("errorMessage", "创建采购订单失败：商品和采购数量不能为空。");
+                reloadPurchasePage(request, response);
+                return;
+            }
+
+            if (unitPrices[i].compareTo(BigDecimal.ZERO) <= 0) {
+                request.setAttribute("errorMessage", "创建采购订单失败：采购单价必须大于 0。");
+                reloadPurchasePage(request, response);
+                return;
+            }
+
+            if (!basicDataDao.isProductBelongToSupplier(productIds[i], supplierId)) {
+                request.setAttribute("errorMessage", "创建采购订单失败：第 " + (i + 1) + " 行商品不属于当前供应商。");
+                reloadPurchasePage(request, response);
+                return;
+            }
+
+            for (int j = 0; j < i; j++) {
+                if (productIds[j] == productIds[i]) {
+                    request.setAttribute("errorMessage", "创建采购订单失败：同一个采购订单中不要重复选择相同商品。");
+                    reloadPurchasePage(request, response);
+                    return;
+                }
+            }
         }
 
         purchaseDao.createPurchaseOrder(
                 supplierId,
-                productId,
-                quantity,
-                unitPrice,
+                productIds,
+                quantities,
+                unitPrices,
                 remark
         );
 

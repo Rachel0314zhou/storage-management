@@ -34,8 +34,28 @@ public class PurchaseDao {
                                     int quantity,
                                     BigDecimal unitPrice,
                                     String remark) throws SQLException {
+        createPurchaseOrder(
+                supplierId,
+                new int[]{productId},
+                new int[]{quantity},
+                new BigDecimal[]{unitPrice},
+                remark
+        );
+    }
+    /**
+     * 创建多商品采购订单。
+     * 一个采购订单对应一个供应商，可以插入多条采购明细。
+     * 只插入 purchase_order 和 purchase_order_item，不改变库存。
+     */
+    public void createPurchaseOrder(int supplierId,
+                                    int[] productIds,
+                                    int[] quantities,
+                                    BigDecimal[] unitPrices,
+                                    String remark) throws SQLException {
         Connection conn = null;
-        CallableStatement cs = null;
+        PreparedStatement psOrder = null;
+        PreparedStatement psItem = null;
+        ResultSet rs = null;
 
         try {
             conn = DB.getConnection();
@@ -44,20 +64,82 @@ public class PurchaseDao {
                 throw new SQLException("数据库连接失败");
             }
 
-            String sql = "{CALL sp_create_purchase_order_tx(?, ?, ?, ?, ?)}";
-            cs = conn.prepareCall(sql);
-            cs.setInt(1, supplierId);
-            cs.setInt(2, productId);
-            cs.setInt(3, quantity);
-            cs.setBigDecimal(4, unitPrice);
-            cs.setString(5, remark);
-            cs.execute();
+            conn.setAutoCommit(false);
 
+            String orderSql =
+                    "INSERT INTO purchase_order (supplier_id, purchase_date, status, remark) " +
+                            "VALUES (?, NOW(), '待入库', ?)";
+
+            psOrder = conn.prepareStatement(orderSql, PreparedStatement.RETURN_GENERATED_KEYS);
+            psOrder.setInt(1, supplierId);
+            psOrder.setString(2, remark);
+            psOrder.executeUpdate();
+
+            rs = psOrder.getGeneratedKeys();
+            int purchaseId;
+
+            if (rs.next()) {
+                purchaseId = rs.getInt(1);
+            } else {
+                throw new SQLException("创建采购订单失败：未获取到采购订单ID");
+            }
+
+            String itemSql =
+                    "INSERT INTO purchase_order_item " +
+                            "(purchase_id, product_id, quantity, unit_price) " +
+                            "VALUES (?, ?, ?, ?)";
+
+            psItem = conn.prepareStatement(itemSql);
+
+            for (int i = 0; i < productIds.length; i++) {
+                psItem.setInt(1, purchaseId);
+                psItem.setInt(2, productIds[i]);
+                psItem.setInt(3, quantities[i]);
+                psItem.setBigDecimal(4, unitPrices[i]);
+                psItem.addBatch();
+            }
+
+            psItem.executeBatch();
+
+            conn.commit();
+
+        } catch (SQLException e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackException) {
+                    rollbackException.printStackTrace();
+                }
+            }
+            throw e;
         } finally {
-            DB.close(null, cs, conn);
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            DB.close(rs, psOrder, null);
+
+            if (psItem != null) {
+                try {
+                    psItem.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
-
     /**
      * 第二步：办理采购入库。
      * 只插入 purchase_stock_in。

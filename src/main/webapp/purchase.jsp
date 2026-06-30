@@ -8,6 +8,7 @@
   <title>采购管理</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
       font-family: "Microsoft YaHei", Arial, sans-serif;
       background: #f5f7fa;
@@ -20,7 +21,11 @@
       color: white;
       padding: 18px 40px;
     }
-    .header h1 { margin: 0; font-size: 24px; }
+
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
 
     .nav {
       background: #34495e;
@@ -29,6 +34,7 @@
       flex-wrap: wrap;
       gap: 5px;
     }
+
     .nav a {
       color: white;
       text-decoration: none;
@@ -38,8 +44,14 @@
       border-radius: 3px;
       transition: background 0.3s;
     }
-    .nav a:hover { background: #3d566e; }
-    .nav a.highlight { color: #f1c40f; }
+
+    .nav a:hover {
+      background: #3d566e;
+    }
+
+    .nav a.highlight {
+      color: #f1c40f;
+    }
 
     .container {
       width: 92%;
@@ -75,6 +87,7 @@
       margin-bottom: 10px;
       box-sizing: border-box;
     }
+
     input[type="text"]:focus,
     input[type="number"]:focus,
     select:focus {
@@ -86,7 +99,8 @@
       width: 110px;
     }
 
-    .btn, button {
+    .btn,
+    button {
       padding: 8px 16px;
       border: none;
       border-radius: 4px;
@@ -98,22 +112,35 @@
       color: white;
       background: #3498db;
     }
-    .btn:hover, button:hover { opacity: 0.85; }
+
+    .btn:hover,
+    button:hover {
+      opacity: 0.85;
+    }
 
     .btn-success {
       background: #27ae60;
     }
-    .btn-success:hover { background: #1e8449; }
+
+    .btn-success:hover {
+      background: #1e8449;
+    }
 
     .btn-orange {
       background: #e67e22;
     }
-    .btn-orange:hover { background: #d35400; }
+
+    .btn-orange:hover {
+      background: #d35400;
+    }
 
     .btn-gray {
       background: #7f8c8d;
     }
-    .btn-gray:hover { background: #666; }
+
+    .btn-gray:hover {
+      background: #666;
+    }
 
     .message-success {
       background: #eafaf1;
@@ -163,9 +190,19 @@
       text-align: center;
     }
 
-    tr:nth-child(even) { background: #fafafa; }
-    tr:hover { background: #f0f7ff; }
-    .empty-row { text-align: center; color: #999; padding: 30px 0; }
+    tr:nth-child(even) {
+      background: #fafafa;
+    }
+
+    tr:hover {
+      background: #f0f7ff;
+    }
+
+    .empty-row {
+      text-align: center;
+      color: #999;
+      padding: 30px 0;
+    }
 
     .status {
       color: #27ae60;
@@ -181,8 +218,19 @@
       margin: 0;
       white-space: nowrap;
     }
+
+    .purchase-row {
+      margin-bottom: 8px;
+      padding: 8px 0;
+      border-bottom: 1px dashed #ddd;
+    }
+
+    .purchase-row:last-child {
+      border-bottom: none;
+    }
   </style>
 </head>
+
 <body>
 
 <div class="header">
@@ -233,20 +281,23 @@
     库存只有在下面“待入库采购订单”中点击“办理入库”后，才会由数据库触发器自动增加。
   </div>
 
-  <form action="${pageContext.request.contextPath}/purchase" method="post">
+  <form action="${pageContext.request.contextPath}/purchase" method="post" id="purchaseForm">
     <input type="hidden" name="action" value="createOrder">
 
-    <select name="supplierId" id="supplierSelect" required>
-      <option value="">请选择供应商</option>
-      <c:forEach var="supplier" items="${supplierList}">
-        <option value="${supplier.supplierId}">
-            ${supplier.supplierId} - ${supplier.supplierName}
-        </option>
-      </c:forEach>
-    </select>
+    <div style="margin-bottom: 12px;">
+      <label style="font-weight:bold;">供应商：</label>
+      <select name="supplierId" id="supplierSelect" required>
+        <option value="">请选择供应商</option>
+        <c:forEach var="supplier" items="${supplierList}">
+          <option value="${supplier.supplierId}">
+              ${supplier.supplierId} - ${supplier.supplierName}
+          </option>
+        </c:forEach>
+      </select>
+    </div>
 
-    <select name="productId" id="productSelect" required disabled>
-      <option value="">请先选择供应商</option>
+    <template id="productOptionsTemplate">
+      <option value="">请选择商品</option>
       <c:forEach var="product" items="${productList}">
         <option value="${product.productId}"
                 data-supplier-id="${product.supplierId}"
@@ -254,11 +305,54 @@
             ${product.productId} - ${product.productName}
         </option>
       </c:forEach>
-    </select>
+    </template>
 
-    <input type="number" name="quantity" placeholder="采购数量" min="1" required>
-    <input type="text" name="unitPrice" placeholder="采购单价，例如 30.00" required>
-    <input type="text" name="remark" placeholder="备注">
+    <div id="purchaseRows">
+      <div class="purchase-row">
+        <label>商品：</label>
+        <select name="productId" class="product-select" required disabled>
+          <option value="">请先选择供应商</option>
+        </select>
+
+        <label style="margin-left:10px;">数量：</label>
+        <input type="number"
+               name="quantity"
+               placeholder="采购数量"
+               min="1"
+               required
+               style="width:90px;">
+
+        <label style="margin-left:10px;">单价：</label>
+        <input type="text"
+               name="unitPrice"
+               placeholder="采购单价"
+               required
+               style="width:110px;">
+
+        <button type="button"
+                onclick="removePurchaseRow(this)"
+                style="margin-left:10px; padding:4px 10px; background:#c0392b;">
+          删除
+        </button>
+      </div>
+    </div>
+
+    <div style="margin: 10px 0;">
+      <button type="button"
+              onclick="addPurchaseRow()"
+              style="padding:6px 16px; background:#7f8c8d;">
+        + 添加商品
+      </button>
+    </div>
+
+    <div style="margin-bottom: 12px;">
+      <label style="font-weight:bold;">备注：</label>
+      <input type="text"
+             name="remark"
+             placeholder="备注"
+             style="width:300px;">
+    </div>
+
     <button type="submit" class="btn-success">提交采购订单</button>
   </form>
 
@@ -331,6 +425,7 @@
   <div class="section-title">三、采购记录查询</div>
 
   <div class="section-title">3.1 采购订单记录</div>
+
   <form action="${pageContext.request.contextPath}/purchase" method="get" style="margin-bottom: 15px;">
     <input type="text"
            name="purchaseKeyword"
@@ -445,64 +540,156 @@
     </table>
   </div>
 </div>
+
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const supplierSelect = document.getElementById("supplierSelect");
-    const productSelect = document.getElementById("productSelect");
-    const unitPriceInput = document.querySelector("input[name='unitPrice']");
 
-    const allProductOptions = Array.from(productSelect.querySelectorAll("option"))
-            .filter(option => option.value !== "");
-
-    function refreshProductOptions() {
-      const supplierId = supplierSelect.value;
-
-      productSelect.innerHTML = "";
-
-      const defaultOption = document.createElement("option");
-      defaultOption.value = "";
-      defaultOption.textContent = supplierId ? "请选择商品" : "请先选择供应商";
-      productSelect.appendChild(defaultOption);
-
-      if (!supplierId) {
-        productSelect.disabled = true;
-        if (unitPriceInput) {
-          unitPriceInput.value = "";
-        }
-        return;
-      }
-
-      let matchedCount = 0;
-
-      allProductOptions.forEach(option => {
-        if (option.dataset.supplierId === supplierId) {
-          productSelect.appendChild(option.cloneNode(true));
-          matchedCount++;
-        }
-      });
-
-      productSelect.disabled = matchedCount === 0;
-
-      if (matchedCount === 0) {
-        defaultOption.textContent = "该供应商暂无可采购商品";
-      }
-
-      if (unitPriceInput) {
-        unitPriceInput.value = "";
-      }
+    if (!supplierSelect) {
+      return;
     }
 
-    productSelect.addEventListener("change", function () {
-      const selectedOption = productSelect.options[productSelect.selectedIndex];
-      if (unitPriceInput && selectedOption && selectedOption.dataset.price) {
-        unitPriceInput.value = selectedOption.dataset.price;
+    supplierSelect.addEventListener("change", function () {
+      refreshAllProductSelects();
+    });
+
+    document.querySelectorAll(".purchase-row").forEach(function (row) {
+      bindProductSelect(row);
+    });
+
+    refreshAllProductSelects();
+  });
+
+  function getFilteredProductOptionsHtml() {
+    const supplierSelect = document.getElementById("supplierSelect");
+    const template = document.getElementById("productOptionsTemplate");
+
+    if (!supplierSelect || !template) {
+      return '<option value="">商品数据加载失败</option>';
+    }
+
+    const supplierId = supplierSelect.value;
+
+    if (!supplierId) {
+      return '<option value="">请先选择供应商</option>';
+    }
+
+    const allOptions = Array.from(template.content.querySelectorAll("option"));
+    let html = '<option value="">请选择商品</option>';
+    let matchedCount = 0;
+
+    allOptions.forEach(function (option) {
+      if (option.value !== "" && option.dataset.supplierId === supplierId) {
+        html += option.outerHTML;
+        matchedCount++;
       }
     });
 
-    supplierSelect.addEventListener("change", refreshProductOptions);
+    if (matchedCount === 0) {
+      html = '<option value="">该供应商暂无商品</option>';
+    }
 
-    refreshProductOptions();
-  });
+    return html;
+  }
+
+  function refreshAllProductSelects() {
+    const supplierSelect = document.getElementById("supplierSelect");
+    const supplierId = supplierSelect.value;
+    const html = getFilteredProductOptionsHtml();
+    const productSelects = document.querySelectorAll(".product-select");
+
+    productSelects.forEach(function (select) {
+      select.innerHTML = html;
+
+      if (!supplierId || html.indexOf("该供应商暂无商品") !== -1) {
+        select.disabled = true;
+      } else {
+        select.disabled = false;
+      }
+    });
+
+    document.querySelectorAll("#purchaseRows input[name='unitPrice']").forEach(function (input) {
+      input.value = "";
+    });
+  }
+
+  function bindProductSelect(row) {
+    const select = row.querySelector(".product-select");
+    const priceInput = row.querySelector("input[name='unitPrice']");
+
+    if (!select || !priceInput) {
+      return;
+    }
+
+    select.addEventListener("change", function () {
+      const selectedOption = select.options[select.selectedIndex];
+
+      if (selectedOption && selectedOption.dataset.price) {
+        priceInput.value = selectedOption.dataset.price;
+      } else {
+        priceInput.value = "";
+      }
+    });
+  }
+
+  function addPurchaseRow() {
+    const container = document.getElementById("purchaseRows");
+    const row = document.createElement("div");
+    const supplierSelect = document.getElementById("supplierSelect");
+    const supplierId = supplierSelect ? supplierSelect.value : "";
+    const productOptionsHtml = getFilteredProductOptionsHtml();
+
+    row.className = "purchase-row";
+
+    row.innerHTML = `
+      <label>商品：</label>
+      <select name="productId" class="product-select" required>
+        ${productOptionsHtml}
+      </select>
+
+      <label style="margin-left:10px;">数量：</label>
+      <input type="number"
+             name="quantity"
+             placeholder="采购数量"
+             min="1"
+             required
+             style="width:90px;">
+
+      <label style="margin-left:10px;">单价：</label>
+      <input type="text"
+             name="unitPrice"
+             placeholder="采购单价"
+             required
+             style="width:110px;">
+
+      <button type="button"
+              onclick="removePurchaseRow(this)"
+              style="margin-left:10px; padding:4px 10px; background:#c0392b;">
+        删除
+      </button>
+    `;
+
+    container.appendChild(row);
+
+    const select = row.querySelector(".product-select");
+    if (!supplierId || productOptionsHtml.indexOf("该供应商暂无商品") !== -1) {
+      select.disabled = true;
+    }
+
+    bindProductSelect(row);
+  }
+
+  function removePurchaseRow(btn) {
+    const row = btn.parentElement;
+    const container = document.getElementById("purchaseRows");
+
+    if (container.children.length > 1) {
+      container.removeChild(row);
+    } else {
+      alert("至少保留一个商品！");
+    }
+  }
 </script>
+
 </body>
 </html>
