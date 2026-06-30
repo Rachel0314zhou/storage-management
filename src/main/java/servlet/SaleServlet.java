@@ -17,17 +17,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
-/**
- * 销售出库控制器
- *
- * 功能：
- * 1. 查询销售明细
- * 2. 搜索销售记录
- * 3. 新增销售出库
- *
- * 访问地址：
- * /sale
- */
 public class SaleServlet extends HttpServlet {
 
     private final SaleDao saleDao = new SaleDao();
@@ -77,14 +66,14 @@ public class SaleServlet extends HttpServlet {
 
         try {
             String customerName = request.getParameter("customerName");
-            int productId = parseInt(request.getParameter("productId"), 0);
-            int quantity = parseInt(request.getParameter("quantity"), 0);
-            BigDecimal unitPrice = parseBigDecimal(request.getParameter("unitPrice"), BigDecimal.ZERO);
+            String[] productIds = request.getParameterValues("productId");
+            String[] quantities = request.getParameterValues("quantity");
+            String[] unitPrices = request.getParameterValues("unitPrice");
             String remark = request.getParameter("remark");
 
             if (customerName == null || customerName.trim().isEmpty()
-                    || productId <= 0 || quantity <= 0) {
-                request.setAttribute("errorMessage", "销售出库失败：客户名称、商品和数量不能为空。");
+                    || productIds == null || productIds.length == 0) {
+                request.setAttribute("errorMessage", "销售出库失败：客户名称和至少一个商品不能为空。");
                 request.setAttribute("saleList", saleDao.findAllSaleDetail());
                 request.getRequestDispatcher("/sale.jsp").forward(request, response);
                 return;
@@ -92,13 +81,26 @@ public class SaleServlet extends HttpServlet {
 
             int customerId = getCustomerIdByName(customerName.trim());
 
-            saleDao.addSaleStockOut(
-                    customerId,
-                    productId,
-                    quantity,
-                    unitPrice,
-                    remark
-            );
+            // 使用 SaleDao 的 SaleItem
+            java.util.List<dao.SaleDao.SaleItem> items = new java.util.ArrayList<>();
+            for (int i = 0; i < productIds.length; i++) {
+                if (productIds[i] != null && !productIds[i].trim().isEmpty()) {
+                    dao.SaleDao.SaleItem item = new dao.SaleDao.SaleItem();
+                    item.setProductId(Integer.parseInt(productIds[i].trim()));
+                    item.setQuantity(Integer.parseInt(quantities[i].trim()));
+                    item.setUnitPrice(new BigDecimal(unitPrices[i].trim()));
+                    items.add(item);
+                }
+            }
+
+            if (items.isEmpty()) {
+                request.setAttribute("errorMessage", "销售出库失败：至少需要一个有效商品。");
+                request.setAttribute("saleList", saleDao.findAllSaleDetail());
+                request.getRequestDispatcher("/sale.jsp").forward(request, response);
+                return;
+            }
+
+            saleDao.addMultiSaleStockOut(customerId, items, remark);
 
             response.sendRedirect(request.getContextPath() + "/sale?success=1");
 
@@ -106,7 +108,7 @@ public class SaleServlet extends HttpServlet {
             e.printStackTrace();
             String message = e.getMessage();
             if (message != null && message.contains("库存不足")) {
-                request.setAttribute("errorMessage", "销售出库失败：库存不足，无法完成出库。");
+                request.setAttribute("errorMessage", "销售出库失败：" + message);
             } else {
                 request.setAttribute("errorMessage", "销售出库失败：" + message);
             }

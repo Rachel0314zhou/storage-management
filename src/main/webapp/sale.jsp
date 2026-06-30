@@ -207,16 +207,39 @@
     <div class="section-title">新增销售出库</div>
 
     <div class="tip">
-        测试数据提示：商品ID可填 1、2、3、4。
-        如果出库数量超过库存，数据库触发器会自动阻止出库并返回“库存不足”。
+        测试数据提示：商品ID可填 1、2、3、4。可添加多个商品。如果出库数量超过库存，系统会提示库存不足。
     </div>
 
-    <form action="${pageContext.request.contextPath}/sale" method="post">
-        <input type="text" name="customerName" placeholder="客户名称" required>
-        <input type="number" name="productId" placeholder="商品ID，例如 1" required>
-        <input type="number" name="quantity" placeholder="出库数量" required>
-        <input type="text" name="unitPrice" placeholder="销售单价，例如 45.00" required>
-        <input type="text" name="remark" placeholder="备注">
+    <form action="${pageContext.request.contextPath}/sale" method="post" id="saleForm">
+        <!-- 客户名称 -->
+        <div style="margin-bottom: 12px;">
+            <label style="font-weight:bold;">客户名称：</label>
+            <input type="text" name="customerName" placeholder="客户名称" required style="width:250px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
+        </div>
+
+        <!-- 商品列表 -->
+        <div id="productRows">
+            <div class="product-row" style="margin-bottom: 8px;">
+                <label>商品ID：</label>
+                <input type="number" name="productId" placeholder="商品ID" required style="width:100px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
+                <label style="margin-left:10px;">数量：</label>
+                <input type="number" name="quantity" placeholder="数量" required style="width:80px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
+                <label style="margin-left:10px;">单价：</label>
+                <input type="text" name="unitPrice" placeholder="单价" required style="width:100px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
+                <button type="button" onclick="removeRow(this)" style="margin-left:10px; padding:4px 10px; background:#c0392b; color:white; border:none; border-radius:4px; cursor:pointer;">删除</button>
+            </div>
+        </div>
+
+        <div style="margin: 10px 0;">
+            <button type="button" onclick="addRow()" style="padding:6px 16px; background:#7f8c8d; color:white; border:none; border-radius:4px; cursor:pointer;">+ 添加商品</button>
+        </div>
+
+        <!-- 备注 -->
+        <div style="margin-bottom: 12px;">
+            <label style="font-weight:bold;">备注：</label>
+            <input type="text" name="remark" placeholder="备注" style="width:300px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
+        </div>
+
         <button type="submit" class="btn-warning">提交销售出库</button>
     </form>
 
@@ -268,6 +291,35 @@
         </table>
     </div>
 </div>
+
+<script>
+    function addRow() {
+        var container = document.getElementById("productRows");
+        var row = document.createElement("div");
+        row.className = "product-row";
+        row.style.marginBottom = "8px";
+        row.innerHTML = `
+            <label>商品ID：</label>
+            <input type="number" name="productId" placeholder="商品ID" required style="width:100px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
+            <label style="margin-left:10px;">数量：</label>
+            <input type="number" name="quantity" placeholder="数量" required style="width:80px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
+            <label style="margin-left:10px;">单价：</label>
+            <input type="text" name="unitPrice" placeholder="单价" required style="width:100px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
+            <button type="button" onclick="removeRow(this)" style="margin-left:10px; padding:4px 10px; background:#c0392b; color:white; border:none; border-radius:4px; cursor:pointer;">删除</button>
+        `;
+        container.appendChild(row);
+    }
+
+    function removeRow(btn) {
+        var row = btn.parentElement;
+        var container = document.getElementById("productRows");
+        if (container.children.length > 1) {
+            container.removeChild(row);
+        } else {
+            alert("至少保留一个商品！");
+        }
+    }
+</script>
 
 </body>
 </html>

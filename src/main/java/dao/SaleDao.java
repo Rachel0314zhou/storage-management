@@ -25,12 +25,13 @@ public class SaleDao {
      * 新增销售出库业务
      *
      * 执行流程：
-     * 1. 插入 sale_order
-     * 2. 插入 sale_order_item
-     * 3. 插入 sale_stock_out
-     * 4. 数据库触发器检查库存是否充足
-     * 5. 数据库触发器自动扣减库存
-     * 6. 数据库触发器自动生成库存流水
+     * 1. 检查库存是否充足（提前检查，避免消耗自增ID）
+     * 2. 插入 sales_order
+     * 3. 插入 sales_order_item
+     * 4. 插入 sale_stock_out
+     * 5. 数据库触发器检查库存是否充足（二次保障）
+     * 6. 数据库触发器自动扣减库存
+     * 7. 数据库触发器自动生成库存流水
      *
      * @return 新增的销售订单 ID
      */
@@ -41,6 +42,7 @@ public class SaleDao {
                                String remark) throws SQLException {
 
         Connection conn = null;
+        PreparedStatement psCheck = null;
         PreparedStatement psOrder = null;
         PreparedStatement psItem = null;
         PreparedStatement psStockOut = null;
@@ -58,7 +60,26 @@ public class SaleDao {
 
             conn.setAutoCommit(false);
 
-            // 1. 插入销售订单
+            // ===== 第1步：提前检查库存是否充足（不消耗ID） =====
+            String checkStockSql = "SELECT quantity FROM inventory WHERE product_id = ?";
+            psCheck = conn.prepareStatement(checkStockSql);
+            psCheck.setInt(1, productId);
+            rs = psCheck.executeQuery();
+
+            if (rs.next()) {
+                int currentStock = rs.getInt("quantity");
+                if (currentStock < quantity) {
+                    throw new SQLException("库存不足，当前库存：" + currentStock + "，需要出库：" + quantity);
+                }
+            } else {
+                throw new SQLException("商品不存在或库存记录为空");
+            }
+            rs.close();
+            psCheck.close();
+
+            // ===== 第2步：库存充足，开始插入数据 =====
+
+            // 2.1 插入销售订单
             String orderSql = "INSERT INTO sales_order (customer_id, order_date, status, remark) VALUES (?, NOW(), 1, ?)";
 
             psOrder = conn.prepareStatement(orderSql, PreparedStatement.RETURN_GENERATED_KEYS);
@@ -73,8 +94,9 @@ public class SaleDao {
             } else {
                 throw new SQLException("新增销售订单失败，未获取到 sales_order_id");
             }
+            rs.close();
 
-            // 2. 插入销售订单明细
+            // 2.2 插入销售订单明细
             String itemSql = "INSERT INTO sales_order_item (sales_order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?)";
 
             psItem = conn.prepareStatement(itemSql);
@@ -84,7 +106,7 @@ public class SaleDao {
             psItem.setBigDecimal(4, unitPrice);
             psItem.executeUpdate();
 
-            // 3. 插入销售出库记录（无 warehouse_id）
+            // 2.3 插入销售出库记录（无 warehouse_id）
             String stockOutSql = "INSERT INTO sale_stock_out (sales_order_id, product_id, stock_out_quantity, remark) VALUES (?, ?, ?, ?)";
 
             psStockOut = conn.prepareStatement(stockOutSql);
@@ -94,7 +116,7 @@ public class SaleDao {
             psStockOut.setString(4, remark);
             psStockOut.executeUpdate();
 
-            // 4. 回填订单总金额
+            // 2.4 回填订单总金额
             String updateTotalSql = "UPDATE sales_order SET total_amount = (SELECT COALESCE(SUM(quantity * unit_price), 0) FROM sales_order_item WHERE sales_order_id = ?) WHERE sales_order_id = ?";
             psUpdateTotal = conn.prepareStatement(updateTotalSql);
             psUpdateTotal.setInt(1, saleId);
@@ -107,7 +129,8 @@ public class SaleDao {
             DB.rollback(conn);
             throw e;
         } finally {
-            DB.close(rs, psStockOut, null);
+            DB.close(rs, psCheck, null);
+            DB.close(null, psStockOut, null);
             DB.close(null, psItem, null);
             DB.close(null, psOrder, null);
             DB.close(null, psUpdateTotal, null);
@@ -243,5 +266,132 @@ public class SaleDao {
         detail.setRemark(rs.getString("remark"));
 
         return detail;
+    }
+
+    // 内部类：用于封装商品信息
+    public static class SaleItem {
+        private int productId;
+        private int quantity;
+        private BigDecimal unitPrice;
+
+        public int getProductId() { return productId; }
+        public void setProductId(int productId) { this.productId = productId; }
+        public int getQuantity() { return quantity; }
+        public void setQuantity(int quantity) { this.quantity = quantity; }
+        public BigDecimal getUnitPrice() { return unitPrice; }
+        public void setUnitPrice(BigDecimal unitPrice) { this.unitPrice = unitPrice; }
+    }
+
+    /**
+     * 新增多商品销售出库业务
+     *
+     * @param customerId 客户ID
+     * @param items 商品列表
+     * @param remark 备注
+     * @return 新增的销售订单 ID
+     */
+    public int addMultiSaleStockOut(int customerId,
+                                    java.util.List<SaleItem> items,
+                                    String remark) throws SQLException {
+
+        Connection conn = null;
+        PreparedStatement psOrder = null;
+        PreparedStatement psItem = null;
+        PreparedStatement psStockOut = null;
+        PreparedStatement psUpdateTotal = null;
+        ResultSet rs = null;
+
+        int saleId = 0;
+
+        try {
+            conn = DB.getConnection();
+
+            if (conn == null) {
+                throw new SQLException("数据库连接失败");
+            }
+
+            conn.setAutoCommit(false);
+
+            // ===== 第1步：提前检查所有商品的库存 =====
+            for (SaleItem item : items) {
+                String checkStockSql = "SELECT quantity FROM inventory WHERE product_id = ?";
+                try (PreparedStatement psCheck = conn.prepareStatement(checkStockSql)) {
+                    psCheck.setInt(1, item.getProductId());
+                    ResultSet rsCheck = psCheck.executeQuery();
+                    if (rsCheck.next()) {
+                        int currentStock = rsCheck.getInt("quantity");
+                        if (currentStock < item.getQuantity()) {
+                            throw new SQLException("库存不足，商品ID：" + item.getProductId() +
+                                    "，当前库存：" + currentStock + "，需要出库：" + item.getQuantity());
+                        }
+                    } else {
+                        throw new SQLException("商品不存在，商品ID：" + item.getProductId());
+                    }
+                    rsCheck.close();
+                }
+            }
+
+            // ===== 第2步：插入销售订单 =====
+            String orderSql = "INSERT INTO sales_order (customer_id, order_date, status, remark) VALUES (?, NOW(), 1, ?)";
+
+            psOrder = conn.prepareStatement(orderSql, PreparedStatement.RETURN_GENERATED_KEYS);
+            psOrder.setInt(1, customerId);
+            psOrder.setString(2, remark);
+            psOrder.executeUpdate();
+
+            rs = psOrder.getGeneratedKeys();
+
+            if (rs.next()) {
+                saleId = rs.getInt(1);
+            } else {
+                throw new SQLException("新增销售订单失败，未获取到 sales_order_id");
+            }
+            rs.close();
+
+            // ===== 第3步：循环插入销售订单明细和出库记录 =====
+            for (SaleItem item : items) {
+                // 3.1 插入明细
+                String itemSql = "INSERT INTO sales_order_item (sales_order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?)";
+                psItem = conn.prepareStatement(itemSql);
+                psItem.setInt(1, saleId);
+                psItem.setInt(2, item.getProductId());
+                psItem.setInt(3, item.getQuantity());
+                psItem.setBigDecimal(4, item.getUnitPrice());
+                psItem.executeUpdate();
+                psItem.close();
+
+                // 3.2 插入出库记录
+                String stockOutSql = "INSERT INTO sale_stock_out (sales_order_id, product_id, stock_out_quantity, remark) VALUES (?, ?, ?, ?)";
+                psStockOut = conn.prepareStatement(stockOutSql);
+                psStockOut.setInt(1, saleId);
+                psStockOut.setInt(2, item.getProductId());
+                psStockOut.setInt(3, item.getQuantity());
+                psStockOut.setString(4, remark);
+                psStockOut.executeUpdate();
+                psStockOut.close();
+            }
+
+            // ===== 第4步：回填订单总金额 =====
+            String updateTotalSql = "UPDATE sales_order SET total_amount = (SELECT COALESCE(SUM(quantity * unit_price), 0) FROM sales_order_item WHERE sales_order_id = ?) WHERE sales_order_id = ?";
+            psUpdateTotal = conn.prepareStatement(updateTotalSql);
+            psUpdateTotal.setInt(1, saleId);
+            psUpdateTotal.setInt(2, saleId);
+            psUpdateTotal.executeUpdate();
+
+            conn.commit();
+
+        } catch (SQLException e) {
+            DB.rollback(conn);
+            throw e;
+        } finally {
+            DB.close(rs, null, null);
+            DB.close(null, psStockOut, null);
+            DB.close(null, psItem, null);
+            DB.close(null, psOrder, null);
+            DB.close(null, psUpdateTotal, null);
+            DB.close(conn);
+        }
+
+        return saleId;
     }
 }
