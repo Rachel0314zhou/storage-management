@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee
+                             https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+
+  <display-name>storage_management</display-name>
+
+  <servlet>
+    <servlet-name>InventoryServlet</servlet-name>
+    <servlet-class>servlet.InventoryServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>InventoryServlet</servlet-name>
+    <url-pattern>/inventory</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>PurchaseServlet</servlet-name>
+    <servlet-class>servlet.PurchaseServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>PurchaseServlet</servlet-name>
+    <url-pattern>/purchase</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>SaleServlet</servlet-name>
+    <servlet-class>servlet.SaleServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>SaleServlet</servlet-name>
+    <url-pattern>/sale</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>InventoryLogServlet</servlet-name>
+    <servlet-class>servlet.InventoryLogServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>InventoryLogServlet</servlet-name>
+    <url-pattern>/inventoryLog</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>PurchaseReturnServlet</servlet-name>
+    <servlet-class>servlet.PurchaseReturnServlet</servlet-class>
+  </servlet>
+
+  <servlet-mapping>
+    <servlet-name>PurchaseReturnServlet</servlet-name>
+    <url-pattern>/purchaseReturn</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>SalesStatisticsServlet</servlet-name>
+    <servlet-class>servlet.SalesStatisticsServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>SalesStatisticsServlet</servlet-name>
+    <url-pattern>/salesStatistics</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>WindowFunctionsServlet</servlet-name>
+    <servlet-class>servlet.WindowFunctionsServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>WindowFunctionsServlet</servlet-name>
+    <url-pattern>/windowFunctions</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>SalesReturnServlet</servlet-name>
+    <servlet-class>servlet.SalesReturnServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>SalesReturnServlet</servlet-name>
+    <url-pattern>/salesReturn</url-pattern>
+  </servlet-mapping>
+
+  <welcome-file-list>
+    <welcome-file>inventory</welcome-file>
+    <welcome-file>inventory.jsp</welcome-file>
+  </welcome-file-list>
+
+</web-app>
