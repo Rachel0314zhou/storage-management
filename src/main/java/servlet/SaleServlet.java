@@ -3,11 +3,13 @@ package servlet;
 import dao.SaleDao;
 import db.DB;
 import model.SaleDetail;
+import model.User;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -61,6 +63,14 @@ public class SaleServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        // ===== 权限校验：只读用户禁止写操作 =====
+        HttpSession session = request.getSession(false);
+        User currentUser = (session != null) ? (User) session.getAttribute("currentUser") : null;
+        if (currentUser == null || currentUser.getRoleId() == 3) {
+            response.sendRedirect(request.getContextPath() + "/403.jsp");
+            return;
+        }
+
         request.setCharacterEncoding("UTF-8");
         response.setContentType("text/html;charset=UTF-8");
 

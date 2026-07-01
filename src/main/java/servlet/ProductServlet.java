@@ -19,10 +19,18 @@ public class ProductServlet extends HttpServlet {
 
         String action = req.getParameter("action");
 
+        // ===== 删除操作：需要权限校验（只读用户禁止） =====
         if ("delete".equals(action)) {
+            // 权限校验：只读用户禁止删除
+            HttpSession session = req.getSession(false);
+            model.User currentUser = (session != null) ? (model.User) session.getAttribute("currentUser") : null;
+            if (currentUser == null || currentUser.getRoleId() == 3) {
+                resp.sendRedirect(req.getContextPath() + "/403.jsp");
+                return;
+            }
+
             String id = req.getParameter("id");
             dao.deleteProduct(Integer.parseInt(id));
-            //resp.sendRedirect("product");
             resp.sendRedirect(req.getContextPath() + "/product");
             return;
         }
@@ -69,6 +77,14 @@ public class ProductServlet extends HttpServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
 
+        // ===== 权限校验：只读用户禁止写操作 =====
+        HttpSession session = req.getSession(false);
+        model.User currentUser = (session != null) ? (model.User) session.getAttribute("currentUser") : null;
+        if (currentUser == null || currentUser.getRoleId() == 3) {
+            resp.sendRedirect(req.getContextPath() + "/403.jsp");
+            return;
+        }
+
         req.setCharacterEncoding("utf-8");
 
         String action = req.getParameter("action");
@@ -107,5 +123,4 @@ public class ProductServlet extends HttpServlet {
             return;
         }
     }
-
 }

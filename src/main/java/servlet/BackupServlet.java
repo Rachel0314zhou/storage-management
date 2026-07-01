@@ -6,6 +6,9 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import model.User;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -18,6 +21,8 @@ import java.time.format.DateTimeFormatter;
  * 主要功能：执行数据库备份（mysqldump）和恢复（mysql）
  * 数据来源：通过调用操作系统外部命令实现，配置统一从 DB.java 获取
  * 访问地址：/backup
+ *
+ * 权限要求：仅管理员（roleId=1）可访问
  */
 @WebServlet("/backup")
 public class BackupServlet extends HttpServlet {
@@ -30,11 +35,20 @@ public class BackupServlet extends HttpServlet {
 
     /**
      * 处理 GET 请求：根据 action 参数分发到备份或恢复操作
+     * 权限校验：仅管理员（roleId=1）可执行
      */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         req.setCharacterEncoding("UTF-8");
         resp.setContentType("text/html;charset=UTF-8");
+
+        // ===== 权限校验：仅管理员（roleId=1）可以访问备份恢复功能 =====
+        HttpSession session = req.getSession(false);
+        User currentUser = (session != null) ? (User) session.getAttribute("currentUser") : null;
+        if (currentUser == null || currentUser.getRoleId() != 1) {
+            resp.sendRedirect(req.getContextPath() + "/403.jsp");
+            return;
+        }
 
         String action = req.getParameter("action");
 
@@ -92,7 +106,7 @@ public class BackupServlet extends HttpServlet {
 
             // 3. 构建并执行 mysqldump 命令
             String cmd = MYSQL_PATH + "mysqldump -u" + USER + " -p" + PASSWORD + " " + DB_NAME + " -r " + backupFile;
-            System.out.println("执行命令：" + cmd); // 【可删除】调试输出
+            System.out.println("执行命令：" + cmd);
 
             Process process = Runtime.getRuntime().exec(cmd);
 
@@ -155,7 +169,7 @@ public class BackupServlet extends HttpServlet {
 
             // 5. 构建并执行 mysql 恢复命令
             String cmd = MYSQL_PATH + "mysql -u" + USER + " -p" + PASSWORD + " " + DB_NAME + " -e \"source " + fullPath + "\"";
-            System.out.println("执行命令：" + cmd); // 【可删除】调试输出
+            System.out.println("执行命令：" + cmd);
 
             Process process = Runtime.getRuntime().exec(cmd);
 

@@ -261,4 +261,34 @@ public class UserDao {
 
         return false;
     }
+    /**
+     * 根据用户名查询用户（用于登录验证）
+     */
+    public User findByUsername(String username) {
+        String sql = "SELECT u.*, r.role_name FROM system_user u LEFT JOIN role r ON u.role_id = r.role_id WHERE u.username = ?";
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            conn = DB.getConnection();
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, username);
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                User user = new User();
+                user.setUserId(rs.getInt("user_id"));
+                user.setUsername(rs.getString("username"));
+                user.setPassword(rs.getString("password"));
+                user.setRoleId(rs.getInt("role_id"));
+                user.setRoleName(rs.getString("role_name"));
+                user.setStatus(rs.getInt("status"));
+                return user;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DB.close(rs, ps, conn);
+        }
+        return null;
+    }
 }
