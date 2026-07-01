@@ -1,5 +1,7 @@
 ﻿<%@ page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ page import="java.util.*" %>
+<%-- 引入 JSTL 核心标签库，用于权限判断 --%>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
 
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -19,8 +21,18 @@
             background: #2c3e50;
             color: white;
             padding: 18px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .header h1 { margin: 0; font-size: 24px; }
+        .header .user-info {
+            font-size: 14px;
+            color: #bdc3c7;
+        }
+        .header .user-info strong {
+            color: white;
+        }
 
         .nav {
             background: #34495e;
@@ -94,16 +106,20 @@
             color: #333;
             padding: 10px 12px;
             border: 1px solid #ddd;
-            text-align: left;
+            text-align: center;
         }
         .data-table td {
             padding: 9px 12px;
             border: 1px solid #ddd;
-            text-align: left;
+            text-align: center;
         }
         .data-table tr:nth-child(even) { background: #fafafa; }
         .data-table tr:hover { background: #f0f7ff; }
         .data-table .empty-row { text-align: center; color: #999; padding: 30px 0; }
+        .readonly-tag {
+            color: #999;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -111,23 +127,37 @@
 <!-- ===== 顶部导航栏 ===== -->
 <div class="header">
     <h1>仓储管理系统</h1>
+    <div class="user-info">
+        欢迎，<strong>${sessionScope.currentUser.username}</strong>
+        （${sessionScope.currentUser.roleName}）
+        <a href="${pageContext.request.contextPath}/logout" style="color:#e74c3c;margin-left:15px;text-decoration:none;">退出</a>
+    </div>
 </div>
 
 <div class="nav">
+    <%-- ===== 所有用户可见的公共菜单 ===== --%>
     <a href="${pageContext.request.contextPath}/product">商品管理</a>
     <a href="${pageContext.request.contextPath}/category">商品分类</a>
     <a href="${pageContext.request.contextPath}/supplier">供应商管理</a>
     <a href="${pageContext.request.contextPath}/customer" class="highlight">客户管理</a>
     <a href="${pageContext.request.contextPath}/inventory">库存管理</a>
-    <a href="${pageContext.request.contextPath}/purchase">采购入库</a>
-    <a href="${pageContext.request.contextPath}/sale">销售出库</a>
     <a href="${pageContext.request.contextPath}/inventoryLog">库存流水</a>
-    <a href="${pageContext.request.contextPath}/purchaseReturn">采购退货</a>
-    <a href="${pageContext.request.contextPath}/salesReturn">销售退货</a>
     <a href="${pageContext.request.contextPath}/salesStatistics">月度统计</a>
     <a href="${pageContext.request.contextPath}/windowFunctions">销售分析</a>
-    <a href="${pageContext.request.contextPath}/user">用户管理</a>
-    <a href="${pageContext.request.contextPath}/backup">备份恢复</a>
+
+    <%-- ===== 业务员和管理员可见（roleId=1 或 2） ===== --%>
+    <c:if test="${sessionScope.currentUser.roleId == 1 or sessionScope.currentUser.roleId == 2}">
+        <a href="${pageContext.request.contextPath}/purchase">采购入库</a>
+        <a href="${pageContext.request.contextPath}/sale">销售出库</a>
+        <a href="${pageContext.request.contextPath}/purchaseReturn">采购退货</a>
+        <a href="${pageContext.request.contextPath}/salesReturn">销售退货</a>
+    </c:if>
+
+    <%-- ===== 仅管理员可见（roleId=1） ===== --%>
+    <c:if test="${sessionScope.currentUser.roleId == 1}">
+        <a href="${pageContext.request.contextPath}/user">用户管理</a>
+        <a href="${pageContext.request.contextPath}/backup">备份恢复</a>
+    </c:if>
 </div>
 
 <!-- ===== 主内容 ===== -->
@@ -135,7 +165,10 @@
     <div class="title">客户列表</div>
 
     <div class="toolbar">
-        <a class="btn btn-green" href="<%=request.getContextPath()%>/addCustomer.jsp">+ 新增客户</a>
+        <%-- 只有非只读用户（管理员或业务员）才能看到“新增客户”按钮 --%>
+        <c:if test="${sessionScope.currentUser.roleId == 1 or sessionScope.currentUser.roleId == 2}">
+            <a class="btn btn-green" href="<%=request.getContextPath()%>/addCustomer.jsp">+ 新增客户</a>
+        </c:if>
         <a class="btn btn-gray" href="<%=request.getContextPath()%>/product">返回商品列表</a>
     </div>
 
@@ -164,8 +197,17 @@
                 <td><%=c.get("phone")%></td>
                 <td><%=c.get("address")%></td>
                 <td>
-                    <a class="btn btn-green btn-small" href="<%=request.getContextPath()%>/customer?action=edit&id=<%=c.get("customer_id")%>">修改</a>
-                    <a class="btn btn-red btn-small" href="<%=request.getContextPath()%>/customer?action=delete&id=<%=c.get("customer_id")%>" onclick="return confirm('确认删除该客户？')">删除</a>
+                    <%-- 只有非只读用户才能看到“修改”和“删除”按钮 --%>
+                    <c:set var="roleId" value="${sessionScope.currentUser.roleId}" />
+                    <c:choose>
+                        <c:when test="${roleId == 1 or roleId == 2}">
+                            <a class="btn btn-green btn-small" href="<%=request.getContextPath()%>/customer?action=edit&id=<%=c.get("customer_id")%>">修改</a>
+                            <a class="btn btn-red btn-small" href="<%=request.getContextPath()%>/customer?action=delete&id=<%=c.get("customer_id")%>" onclick="return confirm('确认删除该客户？')">删除</a>
+                        </c:when>
+                        <c:otherwise>
+                            <span class="readonly-tag">只读</span>
+                        </c:otherwise>
+                    </c:choose>
                 </td>
             </tr>
             <%

@@ -19,8 +19,18 @@
       background: #2c3e50;
       color: white;
       padding: 18px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     .header h1 { margin: 0; font-size: 24px; }
+    .header .user-info {
+      font-size: 14px;
+      color: #bdc3c7;
+    }
+    .header .user-info strong {
+      color: white;
+    }
 
     .nav {
       background: #34495e;
@@ -140,6 +150,15 @@
       line-height: 1.8;
     }
 
+    .readonly-notice {
+      background: #fef9e7;
+      border-left: 4px solid #f39c12;
+      padding: 12px 18px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      color: #7d6608;
+    }
+
     .table-wrap { overflow-x: auto; }
     table {
       width: 100%;
@@ -168,29 +187,49 @@
     .status-rejected { color: #e74c3c; font-weight: bold; }
     .status-returned { color: #2980b9; font-weight: bold; }
     .status-cancelled { color: #95a5a6; font-weight: bold; }
+
+    .readonly-tag {
+      color: #999;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
 
+<!-- ===== 顶部导航栏 ===== -->
 <div class="header">
   <h1>仓储管理系统</h1>
+  <div class="user-info">
+    欢迎，<strong>${sessionScope.currentUser.username}</strong>
+    （${sessionScope.currentUser.roleName}）
+    <a href="${pageContext.request.contextPath}/logout" style="color:#e74c3c;margin-left:15px;text-decoration:none;">退出</a>
+  </div>
 </div>
 
 <div class="nav">
+  <%-- ===== 所有用户可见的公共菜单 ===== --%>
   <a href="${pageContext.request.contextPath}/product">商品管理</a>
   <a href="${pageContext.request.contextPath}/category">商品分类</a>
   <a href="${pageContext.request.contextPath}/supplier">供应商管理</a>
   <a href="${pageContext.request.contextPath}/customer">客户管理</a>
   <a href="${pageContext.request.contextPath}/inventory">库存管理</a>
-  <a href="${pageContext.request.contextPath}/purchase">采购入库</a>
-  <a href="${pageContext.request.contextPath}/sale">销售出库</a>
   <a href="${pageContext.request.contextPath}/inventoryLog">库存流水</a>
-  <a href="${pageContext.request.contextPath}/purchaseReturn">采购退货</a>
-  <a href="${pageContext.request.contextPath}/salesReturn" class="highlight">销售退货</a>
   <a href="${pageContext.request.contextPath}/salesStatistics">月度统计</a>
   <a href="${pageContext.request.contextPath}/windowFunctions">销售分析</a>
-  <a href="${pageContext.request.contextPath}/user">用户管理</a>
-  <a href="${pageContext.request.contextPath}/backup">备份恢复</a>
+
+  <%-- ===== 业务员和管理员可见（roleId=1 或 2） ===== --%>
+  <c:if test="${sessionScope.currentUser.roleId == 1 or sessionScope.currentUser.roleId == 2}">
+    <a href="${pageContext.request.contextPath}/purchase">采购入库</a>
+    <a href="${pageContext.request.contextPath}/sale">销售出库</a>
+    <a href="${pageContext.request.contextPath}/purchaseReturn">采购退货</a>
+    <a href="${pageContext.request.contextPath}/salesReturn" class="highlight">销售退货</a>
+  </c:if>
+
+  <%-- ===== 仅管理员可见（roleId=1） ===== --%>
+  <c:if test="${sessionScope.currentUser.roleId == 1}">
+    <a href="${pageContext.request.contextPath}/user">用户管理</a>
+    <a href="${pageContext.request.contextPath}/backup">备份恢复</a>
+  </c:if>
 </div>
 
 <div class="container">
@@ -240,14 +279,20 @@
           <td>${item['can_return']}</td>
           <td>${item['unit_price']}</td>
           <td>
-            <form action="${pageContext.request.contextPath}/salesReturn" method="post" style="display:inline;">
-              <input type="hidden" name="action" value="add">
-              <input type="hidden" name="salesOrderId" value="${item['sales_order_id']}">
-              <input type="hidden" name="productId" value="${item['product_id']}">
-              <input type="number" name="returnQuantity" placeholder="数量" max="${item['can_return']}" min="1" style="width:60px;padding:4px;" required>
-              <input type="text" name="reason" placeholder="退货原因" style="width:100px;padding:4px;">
-              <button type="submit" class="btn-warning btn-sm">申请退货</button>
-            </form>
+              <%-- 只有非只读用户（管理员或业务员）才能看到“申请退货”表单 --%>
+            <c:if test="${sessionScope.currentUser.roleId == 1 or sessionScope.currentUser.roleId == 2}">
+              <form action="${pageContext.request.contextPath}/salesReturn" method="post" style="display:inline;">
+                <input type="hidden" name="action" value="add">
+                <input type="hidden" name="salesOrderId" value="${item['sales_order_id']}">
+                <input type="hidden" name="productId" value="${item['product_id']}">
+                <input type="number" name="returnQuantity" placeholder="数量" max="${item['can_return']}" min="1" style="width:60px;padding:4px;" required>
+                <input type="text" name="reason" placeholder="退货原因" style="width:100px;padding:4px;">
+                <button type="submit" class="btn-warning btn-sm">申请退货</button>
+              </form>
+            </c:if>
+            <c:if test="${sessionScope.currentUser.roleId == 3}">
+              <span class="readonly-tag">只读</span>
+            </c:if>
           </td>
         </tr>
       </c:forEach>
@@ -262,6 +307,14 @@
 
   <!-- ========== 退货记录 ========== -->
   <div class="section-title">退货记录</div>
+
+  <%-- ===== 只读用户提示（只读用户不能操作退货审核） ===== --%>
+  <c:if test="${sessionScope.currentUser.roleId == 3}">
+    <div class="readonly-notice">
+      ⚠️ 您当前为只读用户，只能查看退货记录，无法执行审核、入库等操作。
+    </div>
+  </c:if>
+
   <div class="table-wrap">
     <table>
       <thead>
@@ -300,36 +353,41 @@
             </c:choose>
           </td>
           <td>
-            <!-- 待审核：显示【通过】【驳回】 -->
-            <c:if test="${item['status'] == 1}">
-              <form action="${pageContext.request.contextPath}/salesReturn" method="post" style="display:inline;">
-                <input type="hidden" name="action" value="approve">
-                <input type="hidden" name="returnId" value="${item['sales_return_id']}">
-                <button type="submit" class="btn-success btn-sm">通过</button>
-              </form>
-              <form action="${pageContext.request.contextPath}/salesReturn" method="post" style="display:inline;">
-                <input type="hidden" name="action" value="reject">
-                <input type="hidden" name="returnId" value="${item['sales_return_id']}">
-                <button type="submit" class="btn-danger btn-sm">驳回</button>
-              </form>
+              <%-- 只有非只读用户（管理员或业务员）才能看到操作按钮 --%>
+            <c:if test="${sessionScope.currentUser.roleId == 1 or sessionScope.currentUser.roleId == 2}">
+              <!-- 待审核：显示【通过】【驳回】 -->
+              <c:if test="${item['status'] == 1}">
+                <form action="${pageContext.request.contextPath}/salesReturn" method="post" style="display:inline;">
+                  <input type="hidden" name="action" value="approve">
+                  <input type="hidden" name="returnId" value="${item['sales_return_id']}">
+                  <button type="submit" class="btn-success btn-sm">通过</button>
+                </form>
+                <form action="${pageContext.request.contextPath}/salesReturn" method="post" style="display:inline;">
+                  <input type="hidden" name="action" value="reject">
+                  <input type="hidden" name="returnId" value="${item['sales_return_id']}">
+                  <button type="submit" class="btn-danger btn-sm">驳回</button>
+                </form>
+              </c:if>
+              <!-- 已通过：显示【确认入库】和【作废】 -->
+              <c:if test="${item['status'] == 2}">
+                <form action="${pageContext.request.contextPath}/salesReturn" method="post" style="display:inline;">
+                  <input type="hidden" name="action" value="confirm">
+                  <input type="hidden" name="returnId" value="${item['sales_return_id']}">
+                  <button type="submit" class="btn-success btn-sm">入库</button>
+                </form>
+                <form action="${pageContext.request.contextPath}/salesReturn" method="post" style="display:inline;">
+                  <input type="hidden" name="action" value="noStockIn">
+                  <input type="hidden" name="returnId" value="${item['sales_return_id']}">
+                  <button type="submit" class="btn-danger btn-sm">作废</button>
+                </form>
+              </c:if>
+              <!-- 已入库/已驳回/已作废：无操作 -->
+              <c:if test="${item['status'] == 3 || item['status'] == 4 || item['status'] == 5}">
+                <span style="color:#999;font-size:12px;">—</span>
+              </c:if>
             </c:if>
-            <!-- 已通过：显示【确认入库】 -->
-            <!-- 已通过：显示【确认入库】和【不入库】 -->
-            <c:if test="${item['status'] == 2}">
-              <form action="${pageContext.request.contextPath}/salesReturn" method="post" style="display:inline;">
-                <input type="hidden" name="action" value="confirm">
-                <input type="hidden" name="returnId" value="${item['sales_return_id']}">
-                <button type="submit" class="btn-success btn-sm">入库</button>
-              </form>
-              <form action="${pageContext.request.contextPath}/salesReturn" method="post" style="display:inline;">
-                <input type="hidden" name="action" value="noStockIn">
-                <input type="hidden" name="returnId" value="${item['sales_return_id']}">
-                <button type="submit" class="btn-danger btn-sm">作废</button>
-              </form>
-            </c:if>
-            <!-- 已入库/已驳回：无操作 -->
-            <c:if test="${item['status'] == 3 || item['status'] == 4}">
-              <span style="color:#999;font-size:12px;">—</span>
+            <c:if test="${sessionScope.currentUser.roleId == 3}">
+              <span class="readonly-tag">只读</span>
             </c:if>
           </td>
         </tr>

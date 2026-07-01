@@ -19,8 +19,18 @@
             background: #2c3e50;
             color: white;
             padding: 18px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .header h1 { margin: 0; font-size: 24px; }
+        .header .user-info {
+            font-size: 14px;
+            color: #bdc3c7;
+        }
+        .header .user-info strong {
+            color: white;
+        }
 
         .nav {
             background: #34495e;
@@ -139,6 +149,15 @@
             line-height: 1.8;
         }
 
+        .readonly-notice {
+            background: #fef9e7;
+            border-left: 4px solid #f39c12;
+            padding: 12px 18px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            color: #7d6608;
+        }
+
         .table-wrap { overflow-x: auto; }
         table {
             width: 100%;
@@ -164,26 +183,42 @@
 </head>
 <body>
 
+<!-- ===== 顶部导航栏 ===== -->
 <div class="header">
     <h1>仓储管理系统</h1>
+    <div class="user-info">
+        欢迎，<strong>${sessionScope.currentUser.username}</strong>
+        （${sessionScope.currentUser.roleName}）
+        <a href="${pageContext.request.contextPath}/logout" style="color:#e74c3c;margin-left:15px;text-decoration:none;">退出</a>
+    </div>
 </div>
 
 <div class="nav">
+    <%-- ===== 所有用户可见的公共菜单 ===== --%>
     <a href="${pageContext.request.contextPath}/product">商品管理</a>
     <a href="${pageContext.request.contextPath}/category">商品分类</a>
     <a href="${pageContext.request.contextPath}/supplier">供应商管理</a>
     <a href="${pageContext.request.contextPath}/customer">客户管理</a>
     <a href="${pageContext.request.contextPath}/inventory">库存管理</a>
-    <a href="${pageContext.request.contextPath}/purchase">采购入库</a>
-    <a href="${pageContext.request.contextPath}/sale" class="highlight">销售出库</a>
     <a href="${pageContext.request.contextPath}/inventoryLog">库存流水</a>
-    <a href="${pageContext.request.contextPath}/purchaseReturn">采购退货</a>
-    <a href="${pageContext.request.contextPath}/salesReturn">销售退货</a>
     <a href="${pageContext.request.contextPath}/salesStatistics">月度统计</a>
     <a href="${pageContext.request.contextPath}/windowFunctions">销售分析</a>
-    <a href="${pageContext.request.contextPath}/user">用户管理</a>
-    <a href="${pageContext.request.contextPath}/backup">备份恢复</a>
+
+    <%-- ===== 业务员和管理员可见（roleId=1 或 2） ===== --%>
+    <c:if test="${sessionScope.currentUser.roleId == 1 or sessionScope.currentUser.roleId == 2}">
+        <a href="${pageContext.request.contextPath}/purchase">采购入库</a>
+        <a href="${pageContext.request.contextPath}/sale" class="highlight">销售出库</a>
+        <a href="${pageContext.request.contextPath}/purchaseReturn">采购退货</a>
+        <a href="${pageContext.request.contextPath}/salesReturn">销售退货</a>
+    </c:if>
+
+    <%-- ===== 仅管理员可见（roleId=1） ===== --%>
+    <c:if test="${sessionScope.currentUser.roleId == 1}">
+        <a href="${pageContext.request.contextPath}/user">用户管理</a>
+        <a href="${pageContext.request.contextPath}/backup">备份恢复</a>
+    </c:if>
 </div>
+
 <div class="container">
     <div class="title">
         <c:choose>
@@ -204,45 +239,60 @@
         <div class="message-error">${errorMessage}</div>
     </c:if>
 
-    <div class="section-title">新增销售出库</div>
+    <%-- ============================================================ --%>
+    <%-- 新增销售出库（仅管理员和业务员可见） --%>
+    <%-- ============================================================ --%>
+    <c:if test="${sessionScope.currentUser.roleId == 1 or sessionScope.currentUser.roleId == 2}">
+        <div class="section-title">新增销售出库</div>
 
-    <div class="tip">
-        测试数据提示：商品ID可填 1、2、3、4。可添加多个商品。如果出库数量超过库存，系统会提示库存不足。
-    </div>
-
-    <form action="${pageContext.request.contextPath}/sale" method="post" id="saleForm">
-        <!-- 客户名称 -->
-        <div style="margin-bottom: 12px;">
-            <label style="font-weight:bold;">客户名称：</label>
-            <input type="text" name="customerName" placeholder="客户名称" required style="width:250px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
+        <div class="tip">
+            测试数据提示：商品ID可填 1、2、3、4。可添加多个商品。如果出库数量超过库存，系统会提示库存不足。
         </div>
 
-        <!-- 商品列表 -->
-        <div id="productRows">
-            <div class="product-row" style="margin-bottom: 8px;">
-                <label>商品ID：</label>
-                <input type="number" name="productId" placeholder="商品ID" required style="width:100px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
-                <label style="margin-left:10px;">数量：</label>
-                <input type="number" name="quantity" placeholder="数量" required style="width:80px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
-                <label style="margin-left:10px;">单价：</label>
-                <input type="text" name="unitPrice" placeholder="单价" required style="width:100px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
-                <button type="button" onclick="removeRow(this)" style="margin-left:10px; padding:4px 10px; background:#c0392b; color:white; border:none; border-radius:4px; cursor:pointer;">删除</button>
+        <form action="${pageContext.request.contextPath}/sale" method="post" id="saleForm">
+            <!-- 客户名称 -->
+            <div style="margin-bottom: 12px;">
+                <label style="font-weight:bold;">客户名称：</label>
+                <input type="text" name="customerName" placeholder="客户名称" required style="width:250px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
             </div>
+
+            <!-- 商品列表 -->
+            <div id="productRows">
+                <div class="product-row" style="margin-bottom: 8px;">
+                    <label>商品ID：</label>
+                    <input type="number" name="productId" placeholder="商品ID" required style="width:100px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
+                    <label style="margin-left:10px;">数量：</label>
+                    <input type="number" name="quantity" placeholder="数量" required style="width:80px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
+                    <label style="margin-left:10px;">单价：</label>
+                    <input type="text" name="unitPrice" placeholder="单价" required style="width:100px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
+                    <button type="button" onclick="removeRow(this)" style="margin-left:10px; padding:4px 10px; background:#c0392b; color:white; border:none; border-radius:4px; cursor:pointer;">删除</button>
+                </div>
+            </div>
+
+            <div style="margin: 10px 0;">
+                <button type="button" onclick="addRow()" style="padding:6px 16px; background:#7f8c8d; color:white; border:none; border-radius:4px; cursor:pointer;">+ 添加商品</button>
+            </div>
+
+            <!-- 备注 -->
+            <div style="margin-bottom: 12px;">
+                <label style="font-weight:bold;">备注：</label>
+                <input type="text" name="remark" placeholder="备注" style="width:300px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
+            </div>
+
+            <button type="submit" class="btn-warning">提交销售出库</button>
+        </form>
+    </c:if>
+
+    <%-- ===== 只读用户看到提示（业务区域不可操作） ===== --%>
+    <c:if test="${sessionScope.currentUser.roleId == 3}">
+        <div class="readonly-notice">
+            ⚠️ 您当前为只读用户，只能查看销售记录，无法新增销售出库。
         </div>
+    </c:if>
 
-        <div style="margin: 10px 0;">
-            <button type="button" onclick="addRow()" style="padding:6px 16px; background:#7f8c8d; color:white; border:none; border-radius:4px; cursor:pointer;">+ 添加商品</button>
-        </div>
-
-        <!-- 备注 -->
-        <div style="margin-bottom: 12px;">
-            <label style="font-weight:bold;">备注：</label>
-            <input type="text" name="remark" placeholder="备注" style="width:300px; padding:8px 10px; border:1px solid #ccc; border-radius:4px;">
-        </div>
-
-        <button type="submit" class="btn-warning">提交销售出库</button>
-    </form>
-
+    <%-- ============================================================ --%>
+    <%-- 销售记录查询（所有用户可见） --%>
+    <%-- ============================================================ --%>
     <div class="section-title">销售记录查询</div>
 
     <form action="${pageContext.request.contextPath}/sale" method="get" style="margin-bottom: 15px;">

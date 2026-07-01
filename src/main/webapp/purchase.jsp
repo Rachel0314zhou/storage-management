@@ -20,11 +20,22 @@
       background: #2c3e50;
       color: white;
       padding: 18px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     .header h1 {
       margin: 0;
       font-size: 24px;
+    }
+
+    .header .user-info {
+      font-size: 14px;
+      color: #bdc3c7;
+    }
+    .header .user-info strong {
+      color: white;
     }
 
     .nav {
@@ -165,6 +176,15 @@
       line-height: 1.8;
     }
 
+    .readonly-notice {
+      background: #fef9e7;
+      border-left: 4px solid #f39c12;
+      padding: 12px 18px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      color: #7d6608;
+    }
+
     .table-block {
       overflow-x: auto;
     }
@@ -228,30 +248,50 @@
     .purchase-row:last-child {
       border-bottom: none;
     }
+
+    .readonly-tag {
+      color: #999;
+      font-size: 12px;
+    }
   </style>
 </head>
 
 <body>
 
+<!-- ===== 顶部导航栏 ===== -->
 <div class="header">
   <h1>仓储管理系统</h1>
+  <div class="user-info">
+    欢迎，<strong>${sessionScope.currentUser.username}</strong>
+    （${sessionScope.currentUser.roleName}）
+    <a href="${pageContext.request.contextPath}/logout" style="color:#e74c3c;margin-left:15px;text-decoration:none;">退出</a>
+  </div>
 </div>
 
 <div class="nav">
+  <%-- ===== 所有用户可见的公共菜单 ===== --%>
   <a href="${pageContext.request.contextPath}/product">商品管理</a>
   <a href="${pageContext.request.contextPath}/category">商品分类</a>
   <a href="${pageContext.request.contextPath}/supplier">供应商管理</a>
   <a href="${pageContext.request.contextPath}/customer">客户管理</a>
   <a href="${pageContext.request.contextPath}/inventory">库存管理</a>
-  <a href="${pageContext.request.contextPath}/purchase" class="highlight">采购入库</a>
-  <a href="${pageContext.request.contextPath}/sale">销售出库</a>
   <a href="${pageContext.request.contextPath}/inventoryLog">库存流水</a>
-  <a href="${pageContext.request.contextPath}/purchaseReturn">采购退货</a>
-  <a href="${pageContext.request.contextPath}/salesReturn">销售退货</a>
   <a href="${pageContext.request.contextPath}/salesStatistics">月度统计</a>
   <a href="${pageContext.request.contextPath}/windowFunctions">销售分析</a>
-  <a href="${pageContext.request.contextPath}/user">用户管理</a>
-  <a href="${pageContext.request.contextPath}/backup">备份恢复</a>
+
+  <%-- ===== 业务员和管理员可见（roleId=1 或 2） ===== --%>
+  <c:if test="${sessionScope.currentUser.roleId == 1 or sessionScope.currentUser.roleId == 2}">
+    <a href="${pageContext.request.contextPath}/purchase" class="highlight">采购入库</a>
+    <a href="${pageContext.request.contextPath}/sale">销售出库</a>
+    <a href="${pageContext.request.contextPath}/purchaseReturn">采购退货</a>
+    <a href="${pageContext.request.contextPath}/salesReturn">销售退货</a>
+  </c:if>
+
+  <%-- ===== 仅管理员可见（roleId=1） ===== --%>
+  <c:if test="${sessionScope.currentUser.roleId == 1}">
+    <a href="${pageContext.request.contextPath}/user">用户管理</a>
+    <a href="${pageContext.request.contextPath}/backup">备份恢复</a>
+  </c:if>
 </div>
 
 <div class="container">
@@ -274,88 +314,103 @@
     <div class="message-error">${errorMessage}</div>
   </c:if>
 
-  <div class="section-title">一、新增采购订单</div>
+  <%-- ============================================================ --%>
+  <%-- 一、新增采购订单（仅管理员和业务员可见） --%>
+  <%-- ============================================================ --%>
+  <c:if test="${sessionScope.currentUser.roleId == 1 or sessionScope.currentUser.roleId == 2}">
+    <div class="section-title">一、新增采购订单</div>
 
-  <div class="tip">
-    第一步只创建采购订单和采购明细，不会增加库存。<br>
-    库存只有在下面“待入库采购订单”中点击“办理入库”后，才会由数据库触发器自动增加。
-  </div>
+    <div class="tip">
+      第一步只创建采购订单和采购明细，不会增加库存。<br>
+      库存只有在下面“待入库采购订单”中点击“办理入库”后，才会由数据库触发器自动增加。
+    </div>
 
-  <form action="${pageContext.request.contextPath}/purchase" method="post" id="purchaseForm">
-    <input type="hidden" name="action" value="createOrder">
+    <form action="${pageContext.request.contextPath}/purchase" method="post" id="purchaseForm">
+      <input type="hidden" name="action" value="createOrder">
 
-    <div style="margin-bottom: 12px;">
-      <label style="font-weight:bold;">供应商：</label>
-      <select name="supplierId" id="supplierSelect" required>
-        <option value="">请选择供应商</option>
-        <c:forEach var="supplier" items="${supplierList}">
-          <option value="${supplier.supplierId}">
-              ${supplier.supplierId} - ${supplier.supplierName}
+      <div style="margin-bottom: 12px;">
+        <label style="font-weight:bold;">供应商：</label>
+        <select name="supplierId" id="supplierSelect" required>
+          <option value="">请选择供应商</option>
+          <c:forEach var="supplier" items="${supplierList}">
+            <option value="${supplier.supplierId}">
+                ${supplier.supplierId} - ${supplier.supplierName}
+            </option>
+          </c:forEach>
+        </select>
+      </div>
+
+      <template id="productOptionsTemplate">
+        <option value="">请选择商品</option>
+        <c:forEach var="product" items="${productList}">
+          <option value="${product.productId}"
+                  data-supplier-id="${product.supplierId}"
+                  data-price="${product.purchasePrice}">
+              ${product.productId} - ${product.productName}
           </option>
         </c:forEach>
-      </select>
-    </div>
+      </template>
 
-    <template id="productOptionsTemplate">
-      <option value="">请选择商品</option>
-      <c:forEach var="product" items="${productList}">
-        <option value="${product.productId}"
-                data-supplier-id="${product.supplierId}"
-                data-price="${product.purchasePrice}">
-            ${product.productId} - ${product.productName}
-        </option>
-      </c:forEach>
-    </template>
+      <div id="purchaseRows">
+        <div class="purchase-row">
+          <label>商品：</label>
+          <select name="productId" class="product-select" required disabled>
+            <option value="">请先选择供应商</option>
+          </select>
 
-    <div id="purchaseRows">
-      <div class="purchase-row">
-        <label>商品：</label>
-        <select name="productId" class="product-select" required disabled>
-          <option value="">请先选择供应商</option>
-        </select>
+          <label style="margin-left:10px;">数量：</label>
+          <input type="number"
+                 name="quantity"
+                 placeholder="采购数量"
+                 min="1"
+                 required
+                 style="width:90px;">
 
-        <label style="margin-left:10px;">数量：</label>
-        <input type="number"
-               name="quantity"
-               placeholder="采购数量"
-               min="1"
-               required
-               style="width:90px;">
+          <label style="margin-left:10px;">单价：</label>
+          <input type="text"
+                 name="unitPrice"
+                 placeholder="采购单价"
+                 required
+                 style="width:110px;">
 
-        <label style="margin-left:10px;">单价：</label>
-        <input type="text"
-               name="unitPrice"
-               placeholder="采购单价"
-               required
-               style="width:110px;">
+          <button type="button"
+                  onclick="removePurchaseRow(this)"
+                  style="margin-left:10px; padding:4px 10px; background:#c0392b;">
+            删除
+          </button>
+        </div>
+      </div>
 
+      <div style="margin: 10px 0;">
         <button type="button"
-                onclick="removePurchaseRow(this)"
-                style="margin-left:10px; padding:4px 10px; background:#c0392b;">
-          删除
+                onclick="addPurchaseRow()"
+                style="padding:6px 16px; background:#7f8c8d;">
+          + 添加商品
         </button>
       </div>
+
+      <div style="margin-bottom: 12px;">
+        <label style="font-weight:bold;">备注：</label>
+        <input type="text"
+               name="remark"
+               placeholder="备注"
+               style="width:300px;">
+      </div>
+
+      <button type="submit" class="btn-success">提交采购订单</button>
+    </form>
+  </c:if>
+
+  <%-- ===== 只读用户看到提示（业务区域不可操作） ===== --%>
+  <c:if test="${sessionScope.currentUser.roleId == 3}">
+    <div class="readonly-notice">
+      ⚠️ 您当前为只读用户，只能查看采购订单记录，无法新增采购订单或办理入库。
     </div>
+  </c:if>
 
-    <div style="margin: 10px 0;">
-      <button type="button"
-              onclick="addPurchaseRow()"
-              style="padding:6px 16px; background:#7f8c8d;">
-        + 添加商品
-      </button>
-    </div>
-
-    <div style="margin-bottom: 12px;">
-      <label style="font-weight:bold;">备注：</label>
-      <input type="text"
-             name="remark"
-             placeholder="备注"
-             style="width:300px;">
-    </div>
-
-    <button type="submit" class="btn-success">提交采购订单</button>
-  </form>
-
+  <%-- ============================================================ --%>
+  <%-- 二、待入库采购订单（办理入库仅管理员和业务员可见） --%>
+  <%-- ============================================================ --%>
   <div class="section-title">二、待入库采购订单</div>
 
   <div class="tip">
@@ -395,20 +450,26 @@
           <td>${order.unitPrice}</td>
           <td>${order.amount}</td>
           <td>
-            <form class="inline-form" action="${pageContext.request.contextPath}/purchase" method="post">
-              <input type="hidden" name="action" value="stockIn">
-              <input type="hidden" name="purchaseId" value="${order.purchaseId}">
-              <input type="hidden" name="productId" value="${order.productId}">
-              <input class="small-input"
-                     type="number"
-                     name="stockInQuantity"
-                     min="1"
-                     max="${order.remainingQuantity}"
-                     placeholder="数量"
-                     required>
-              <input class="small-input" type="text" name="remark" placeholder="备注">
-              <button type="submit" class="btn-orange">办理入库</button>
-            </form>
+              <%-- 只有非只读用户才能看到“办理入库”表单 --%>
+            <c:if test="${sessionScope.currentUser.roleId == 1 or sessionScope.currentUser.roleId == 2}">
+              <form class="inline-form" action="${pageContext.request.contextPath}/purchase" method="post">
+                <input type="hidden" name="action" value="stockIn">
+                <input type="hidden" name="purchaseId" value="${order.purchaseId}">
+                <input type="hidden" name="productId" value="${order.productId}">
+                <input class="small-input"
+                       type="number"
+                       name="stockInQuantity"
+                       min="1"
+                       max="${order.remainingQuantity}"
+                       placeholder="数量"
+                       required>
+                <input class="small-input" type="text" name="remark" placeholder="备注">
+                <button type="submit" class="btn-orange">办理入库</button>
+              </form>
+            </c:if>
+            <c:if test="${sessionScope.currentUser.roleId == 3}">
+              <span class="readonly-tag">只读</span>
+            </c:if>
           </td>
         </tr>
       </c:forEach>
@@ -422,6 +483,9 @@
     </table>
   </div>
 
+  <%-- ============================================================ --%>
+  <%-- 三、采购记录查询（所有用户可见） --%>
+  <%-- ============================================================ --%>
   <div class="section-title">三、采购记录查询</div>
 
   <div class="section-title">3.1 采购订单记录</div>

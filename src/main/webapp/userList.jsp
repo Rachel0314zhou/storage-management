@@ -19,8 +19,18 @@
             background: #2c3e50;
             color: white;
             padding: 18px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .header h1 { margin: 0; font-size: 24px; }
+        .header .user-info {
+            font-size: 14px;
+            color: #bdc3c7;
+        }
+        .header .user-info strong {
+            color: white;
+        }
 
         .nav {
             background: #34495e;
@@ -122,25 +132,40 @@
 </head>
 <body>
 
+<!-- ===== 顶部导航栏 ===== -->
 <div class="header">
     <h1>仓储管理系统</h1>
+    <div class="user-info">
+        欢迎，<strong>${sessionScope.currentUser.username}</strong>
+        （${sessionScope.currentUser.roleName}）
+        <a href="${pageContext.request.contextPath}/logout" style="color:#e74c3c;margin-left:15px;text-decoration:none;">退出</a>
+    </div>
 </div>
 
 <div class="nav">
+    <%-- ===== 所有用户可见的公共菜单 ===== --%>
     <a href="${pageContext.request.contextPath}/product">商品管理</a>
     <a href="${pageContext.request.contextPath}/category">商品分类</a>
     <a href="${pageContext.request.contextPath}/supplier">供应商管理</a>
     <a href="${pageContext.request.contextPath}/customer">客户管理</a>
     <a href="${pageContext.request.contextPath}/inventory">库存管理</a>
-    <a href="${pageContext.request.contextPath}/purchase">采购入库</a>
-    <a href="${pageContext.request.contextPath}/sale">销售出库</a>
     <a href="${pageContext.request.contextPath}/inventoryLog">库存流水</a>
-    <a href="${pageContext.request.contextPath}/purchaseReturn">采购退货</a>
-    <a href="${pageContext.request.contextPath}/salesReturn">销售退货</a>
     <a href="${pageContext.request.contextPath}/salesStatistics">月度统计</a>
     <a href="${pageContext.request.contextPath}/windowFunctions">销售分析</a>
-    <a href="${pageContext.request.contextPath}/user" class="highlight">用户管理</a>
-    <a href="${pageContext.request.contextPath}/backup">备份恢复</a>
+
+    <%-- ===== 业务员和管理员可见（roleId=1 或 2） ===== --%>
+    <c:if test="${sessionScope.currentUser.roleId == 1 or sessionScope.currentUser.roleId == 2}">
+        <a href="${pageContext.request.contextPath}/purchase">采购入库</a>
+        <a href="${pageContext.request.contextPath}/sale">销售出库</a>
+        <a href="${pageContext.request.contextPath}/purchaseReturn">采购退货</a>
+        <a href="${pageContext.request.contextPath}/salesReturn">销售退货</a>
+    </c:if>
+
+    <%-- ===== 仅管理员可见（roleId=1） ===== --%>
+    <c:if test="${sessionScope.currentUser.roleId == 1}">
+        <a href="${pageContext.request.contextPath}/user" class="highlight">用户管理</a>
+        <a href="${pageContext.request.contextPath}/backup">备份恢复</a>
+    </c:if>
 </div>
 
 <div class="container">
