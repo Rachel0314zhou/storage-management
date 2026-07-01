@@ -663,7 +663,16 @@
     const productSelects = document.querySelectorAll(".product-select");
 
     productSelects.forEach(function (select) {
+
+      // 🔥 先保存当前选中的值
+      const oldValue = select.value;
+
       select.innerHTML = html;
+
+      // 🔥 恢复选中值
+      if (oldValue) {
+        select.value = oldValue;
+      }
 
       if (!supplierId || html.indexOf("该供应商暂无商品") !== -1) {
         select.disabled = true;
@@ -673,7 +682,7 @@
     });
 
     document.querySelectorAll("#purchaseRows input[name='unitPrice']").forEach(function (input) {
-      input.value = "";
+      
     });
   }
 
@@ -702,7 +711,7 @@
     const supplierSelect = document.getElementById("supplierSelect");
     const supplierId = supplierSelect ? supplierSelect.value : "";
     const productOptionsHtml = getFilteredProductOptionsHtml();
-
+    // setTimeout(refreshAllProductSelects, 0);
     row.className = "purchase-row";
 
     row.innerHTML = `
@@ -741,6 +750,7 @@
     }
 
     bindProductSelect(row);
+    refreshAllProductSelects();
   }
 
   function removePurchaseRow(btn) {
